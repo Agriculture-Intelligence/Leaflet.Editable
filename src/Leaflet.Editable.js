@@ -1764,78 +1764,30 @@
 
     });
 
-        // 🍂namespace Editable; 🍂class CircleMarkerEditor; 🍂aka L.Editable.CircleMarkerEditor
-    // 🍂inherits PathEditor
-    L.Editable.CircleMarkerEditor = L.Editable.PathEditor.extend({
-
-        MIN_VERTEX: 2,
-
-        options: {
-            skipMiddleMarkers: true
-        },
-
-        initialize: function (map, feature, options) {
-            L.Editable.PathEditor.prototype.initialize.call(this, map, feature, options);
-            this._resizeLatLng = this.computeResizeLatLng();
-        },
-
-        computeResizeLatLng: function () {
-            // While circle is not added to the map, _radius is not set.
-            var delta = (this.feature._radius || this.feature._mRadius) * Math.cos(Math.PI / 4),
-                point = this.map.project(this.feature._latlng);
-            return this.map.unproject([point.x + delta, point.y - delta]);
-        },
-
-        updateResizeLatLng: function () {
-            this._resizeLatLng.update(this.computeResizeLatLng());
-            this._resizeLatLng.__vertex.update();
-        },
-
-        getLatLngs: function () {
-            return [this.feature._latlng, this._resizeLatLng];
-        },
-
-        getDefaultLatLngs: function () {
-            return this.getLatLngs();
-        },
-
-        onVertexMarkerDrag: function (e) {
-            if (e.vertex.getIndex() === 1) this.resize(e);
-            else this.updateResizeLatLng(e);
-            L.Editable.PathEditor.prototype.onVertexMarkerDrag.call(this, e);
-        },
-
-        resize: function (e) {
-            var radius = this.feature._latlng.distanceTo(e.latlng);
-            this.feature.setRadius(radius);
-        },
-
-        onDrawingMouseDown: function (e) {
-            L.Editable.PathEditor.prototype.onDrawingMouseDown.call(this, e);
-            this._resizeLatLng.update(e.latlng);
-            this.feature._latlng.update(e.latlng);
-            this.connect();
-            // Stop dragging map.
-            e.originalEvent._simulated = false;
-            this.map.dragging._draggable._onUp(e.originalEvent);
-            // Now transfer ongoing drag action to the radius handler.
-            this._resizeLatLng.__vertex.dragging._draggable._onDown(e.originalEvent);
-        },
-
-        onDrawingMouseUp: function (e) {
-            this.commitDrawing(e);
-            e.originalEvent._simulated = false;
-            L.Editable.PathEditor.prototype.onDrawingMouseUp.call(this, e);
-        },
+    // 🍂namespace Editable; 🍂class CircleMarkerEditor; 🍂aka L.Editable.CircleMarkerEditor
+    // 🍂inherits BaseEditor
+    // Editor for Marker.
+    L.Editable.CircleMarkerEditor = L.Editable.BaseEditor.extend({
 
         onDrawingMouseMove: function (e) {
-            e.originalEvent._simulated = false;
-            L.Editable.PathEditor.prototype.onDrawingMouseMove.call(this, e);
+            L.Editable.BaseEditor.prototype.onDrawingMouseMove.call(this, e);
+            if (this._drawing) this.feature.setLatLng(e.latlng);
         },
 
-        onDrag: function (e) {
-            L.Editable.PathEditor.prototype.onDrag.call(this, e);
-            this.feature.dragging.updateLatLng(this._resizeLatLng);
+        processDrawingClick: function (e) {
+            // 🍂namespace Editable
+            // 🍂section Drawing events
+            // 🍂event editable:drawing:clicked: Event
+            // Fired when user `click` while drawing, after all internal actions.
+            this.fireAndForward('editable:drawing:clicked', e);
+            this.commitDrawing(e);
+        },
+
+        connect: function (e) {
+            // On touch, the latlng has not been updated because there is
+            // no mousemove.
+            if (e) this.feature._latlng = e.latlng;
+            L.Editable.BaseEditor.prototype.connect.call(this, e);
         }
 
     });
@@ -1998,6 +1950,7 @@
     var CircleMixin = {
 
         getEditorClass: function (tools) {
+            console.log("TEST TEST TEST", L.Editable.CircleEditor)
             return (tools && tools.options.circleEditorClass) ? tools.options.circleEditorClass : L.Editable.CircleEditor;
         }
 
@@ -2006,7 +1959,7 @@
     var CircleMarkerMixin = {
 
         getEditorClass: function (tools) {
-            console.log("RETURNING THE EDITOR CLASS", tools.options.circleMarkerEditorClass)
+            console.log("RETURNING THE EDITOR CLASS", L.Editable.CircleMarkerEditor)
             return (tools && tools.options.circleMarkerEditorClass) ? tools.options.circleMarkerEditorClass : L.Editable.CircleMarkerEditor;
         }
 
@@ -2045,6 +1998,7 @@
     if (L.CircleMarker) {
         L.CircleMarker.include(EditableMixin);
         L.CircleMarker.include(CircleMarkerMixin);
+        L.CircleMarker.addInitHook(keepEditable);
     }
 
     L.LatLng.prototype.update = function (latlng) {
